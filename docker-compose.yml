@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  # Your web API with FastAPI
+  api:
+    build: .
+    container_name: semantic_cache_api
+    ports:
+      - "8000:8000"
+    volumes:
+      # Save the Chroma cache on your hard drive so we do not lose it if you turn off Docker
+      - ./chroma_db:/app/chroma_db
+    environment:
+      # Tell the API how to call the Ollama container
+      - OLLAMA_URL=http://ollama:11434
+    depends_on:
+      - ollama
+
+  # The local LLM (Ollama)
+  ollama:
+    image: ollama/ollama
+    container_name: ollama_llm
+    ports:
+      - "11434:11434"
+    volumes:
+      # Save downloaded models (like llama3) to avoid downloading them every time
+      - ./ollama_data:/root/.ollama

@@ -1,0 +1,15 @@
+# Ignore identical things to .gitignore
+.env
+venv/
+.venv/
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.vscode/
+.idea/
+
+# Database and heavy files should NEVER be uploaded to the build context
+chroma_db/
+ollama_data/
