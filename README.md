@@ -84,8 +84,8 @@ flowchart TD
     D -->|4. Mean Pooling| E(Single Sentence Vector)
     E -->|5. L2 Normalization| F[Final 384-Dimension Embedding]
     
-    style A fill:#f8fafc,stroke:#64748b,stroke-width:2px
-    style F fill:#f0fdf4,stroke:#22c55e,stroke-width:3px
+    style A fill:#f8fafc,stroke:#64748b,stroke-width:2px,color:#0f172a
+    style F fill:#f0fdf4,stroke:#22c55e,stroke-width:3px,color:#14532d
 ```
 
 #### Step-by-Step Breakdown
