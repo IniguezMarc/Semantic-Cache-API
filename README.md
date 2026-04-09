@@ -68,6 +68,39 @@ $$
 
 In this specific API configuration, a threshold of **0.4** is established to validate a Cache Hit.
 
+### Deep Dive: How Embeddings Work
+
+Embeddings are the mathematical engine of the semantic cache. They bridge the gap between human language and machine-computable mathematics by translating text into high-dimensional vectors. Rather than looking at keywords, an embedding model captures the contextual meaning, intent, and relationships between words.
+
+In this project, we utilize the `all-MiniLM-L6-v2` model from Sentence-Transformers. When a query is sent to this model, it goes through a strict transformation pipeline to become a 384-dimensional vector.
+
+#### The Transformation Pipeline
+
+```mermaid
+flowchart TD
+    A[Raw Input Text] -->|1. Tokenization| B(Token IDs)
+    B -->|2. Contextual Processing| C{Transformer Layers\nSelf-Attention Mechanism}
+    C -->|3. Token Embeddings| D[Dense Vectors per Token]
+    D -->|4. Mean Pooling| E(Single Sentence Vector)
+    E -->|5. L2 Normalization| F[Final 384-Dimension Embedding]
+    
+    style A fill:#f8fafc,stroke:#64748b,stroke-width:2px
+    style F fill:#f0fdf4,stroke:#22c55e,stroke-width:3px
+```
+
+#### Step-by-Step Breakdown
+
+- **Tokenization:** The raw input string is broken down into smaller units called tokens (words or sub-words). These tokens are then mapped to integer IDs based on the model's pre-trained vocabulary.
+- **Contextual Processing (Self-Attention):** The token IDs are passed through multiple Transformer neural network layers. Through the "self-attention" mechanism, the model analyzes the relationship between every word in the sentence. For example, it understands that "bank" in "river bank" is different from "bank" in "bank account" based on the surrounding words.
+- **Mean Pooling:** After passing through the Transformer, each token has its own vector. To represent the entire sentence as a single concept, the model performs "Mean Pooling"—averaging the vectors of all individual tokens into one single, unified vector.
+- **L2 Normalization:** Finally, the resulting sentence vector is normalized to have a length (magnitude) of 1. This step is crucial because it ensures that when ChromaDB calculates the Cosine Distance, it is purely comparing the angle (the semantic direction) of the vectors, completely ignoring their magnitude.
+
+#### The Latent Space
+
+The final output is an array of 384 floating-point numbers (e.g., `[0.034, -0.112, 0.891...]`). Each of these 384 dimensions represents an abstract, latent semantic feature learned by the model during its training on billions of sentences.
+
+While these individual dimensions are not directly interpretable by humans (e.g., dimension 15 doesn't strictly mean "food"), combined, they place the query at a highly specific coordinate in a 384-dimensional space. Queries with similar meanings will naturally end up clustered in the same region of this space, which is what makes semantic caching possible.
+
 ### Visualizing Semantic Caching
 
 The following diagram illustrates how incoming queries are plotted in the vector space and compared against previously cached queries. The system calculates the distance between the new vector and existing nodes to determine if a cache hit occurs.
