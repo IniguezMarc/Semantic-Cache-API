@@ -67,3 +67,31 @@ $$
 - A distance of **1.0** indicates orthogonality (unrelated meanings).
 
 In this specific API configuration, a threshold of **0.4** is established to validate a Cache Hit.
+
+### Visualizing Semantic Caching
+
+The following diagram illustrates how incoming queries are plotted in the vector space and compared against previously cached queries. The system calculates the distance between the new vector and existing nodes to determine if a cache hit occurs.
+
+```mermaid
+graph LR
+    classDef cached fill:#f3f4f6,stroke:#4b5563,stroke-width:2px,color:#1f2937;
+    classDef hit fill:#dcfce7,stroke:#22c55e,stroke-width:3px,color:#14532d;
+    classDef miss fill:#fee2e2,stroke:#ef4444,stroke-width:3px,color:#7f1d1d;
+
+    subgraph Vector_Space [Vector Space Representation]
+        direction LR
+        
+        %% Existing Cached Nodes
+        C1(("Cached Node A:\n'What is a black hole?'")):::cached
+        C2(("Cached Node B:\n'How to cook an omelette?'")):::cached
+        
+        %% Incoming Queries
+        Q1("Incoming Query 1:\n'Explain black hole formation'"):::hit
+        Q2("Incoming Query 2:\n'Nuclear fission vs fusion'"):::miss
+
+        %% Distance Calculations
+        Q1 -. "Distance: 0.15\n(Hit: < 0.40 Threshold)" .-> C1
+        Q2 -. "Distance: 0.85\n(Miss: > 0.40 Threshold)" .-> C1
+        Q2 -. "Distance: 0.92\n(Miss: > 0.40 Threshold)" .-> C2
+    end
+```
