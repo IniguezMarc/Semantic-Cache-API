@@ -128,3 +128,95 @@ graph LR
         Q2 -. "Distance: 0.92\n(Miss: > 0.40 Threshold)" .-> C2
     end
 ```
+
+## 3. Technology Stack and Dependencies
+
+The project relies on a carefully selected stack of modern, open-source tools designed for high performance, local execution, and scalability. The architecture is divided into four main categories: Web Infrastructure, Machine Learning, Data Storage, and Containerization.
+
+### Web Framework and API
+*   **FastAPI:** A modern, fast (high-performance) web framework for building APIs with Python 3.8+ based on standard Python type hints. It was chosen for its asynchronous capabilities, speed (powered by Starlette), and automatic generation of interactive API documentation (Swagger UI).
+*   **Uvicorn:** A lightning-fast ASGI web server implementation, used to serve the FastAPI application in the production container.
+*   **Pydantic:** Used extensively by FastAPI for data validation and settings management. It ensures that incoming requests to the `/ask` endpoint strictly adhere to the defined data models.
+
+### Machine Learning and NLP
+*   **Sentence-Transformers:** A Python framework for state-of-the-art sentence and text embeddings. It provides the pipeline to easily load pre-trained models and compute dense vector representations.
+*   **all-MiniLM-L6-v2:** The specific pre-trained embedding model utilized in this project. It was selected for its optimal balance between computational efficiency and semantic accuracy, generating 384-dimensional vectors extremely fast on standard CPU hardware.
+*   **Ollama:** A lightweight, extensible framework designed to run Large Language Models locally. It manages the hardware resources and provides a clean API to interact with the models without requiring complex PyTorch/CUDA setups.
+*   **Meta Llama 3 (8B):** The underlying Large Language Model used as the fallback generator. When a cache miss occurs, Ollama provisions this model to generate the actual response.
+
+### Vector Storage
+*   **ChromaDB:** An AI-native, open-source vector database. It is used in its persistent client mode to store the generated embeddings, the original user prompts, and the LLM-generated responses. ChromaDB was chosen because it allows for local, in-memory execution with disk persistence, eliminating the need for a cloud-based vector database and ensuring total data privacy.
+
+### Infrastructure and Orchestration
+*   **Docker:** Used to containerize the Python API environment, ensuring that all dependencies (like Uvicorn, FastAPI, and Sentence-Transformers) are locked in and execute consistently across any operating system.
+*   **Docker Compose:** Orchestrates the multi-container architecture. It manages the networking layer between the FastAPI container and the Ollama container, and handles the persistent volume mounts required for ChromaDB and Ollama's model storage.
+
+## 4. Deployment and Testing Guide
+
+The project is designed to be easily reproducible using Docker. Follow these steps to deploy the infrastructure and test the semantic caching mechanism.
+
+### Prerequisites
+*   **Docker and Docker Compose** installed on your system.
+*   **Hardware Requirements:** A minimum of 8GB of RAM is recommended to run the Llama 3 (8B) model locally without severe performance degradation.
+
+### Step 1: Build and Deploy
+
+Clone the repository and navigate to the project root directory. Execute the following command to build the API image and start the containers in detached mode:
+
+```bash
+git clone <YOUR_REPOSITORY_URL>
+cd <REPOSITORY_NAME>
+docker-compose up -d --build
+```
+
+### Step 2: Provision the Local LLM
+
+The Ollama container boots up without any models pre-installed. You must pull the Llama 3 model into the container's volume. Run the following command and wait for the download to complete (approximately 4.7 GB):
+
+```bash
+docker exec -it ollama_llm ollama pull llama3
+```
+
+### Step 3: Interactive Testing
+
+Once the model is downloaded, the API will be fully operational. You can test it using the automatic Swagger UI documentation or via terminal using cURL.
+
+#### Method A: Using the Browser (Swagger UI)
+Navigate to `http://127.0.0.1:8000/docs` and locate the `POST /ask` endpoint.
+
+#### Method B: Using cURL
+You can execute the following scenarios directly from your terminal.
+
+**Scenario 1: Triggering a Cache Miss**
+Send a completely new query to the system. The API will generate an embedding, find no matches in ChromaDB, and forward the request to the local LLM.
+
+```bash
+curl -X 'POST' \
+  'http://127.0.0.1:8000/ask' \
+  -H 'accept: application/json' \
+  -H 'Content-Type: application/json' \
+  -d '{
+  "prompt": "What are the differences between nuclear fission and fusion?"
+}'
+```
+
+**Expected Result:** The request will take several seconds to process. The response JSON will indicate `"status": "cache_miss (new generation)"` and will return the newly generated text from Llama 3. The system silently stores this vector and response in the database.
+
+**Scenario 2: Triggering a Cache Hit**
+Send a new request with different wording but the exact same semantic intent.
+
+```bash
+curl -X 'POST' \
+  'http://127.0.0.1:8000/ask' \
+  -H 'accept: application/json' \
+  -H 'Content-Type: application/json' \
+  -d '{
+  "prompt": "Explain how atomic fission differs from nuclear fusion."
+}'
+```
+
+**Expected Result:** The request will return almost instantly (milliseconds). The embedding model recognizes the semantic proximity to the previous query. The response JSON will indicate `"status": "cache_hit"`, display the calculated distance (e.g., 0.12), and return the exact text generated in Scenario 1 without invoking the LLM.
+
+### State Management Note
+
+The vector database (`chroma_db`) and the downloaded LLM weights (`ollama_data`) are stored in local directories mapped as Docker volumes to ensure data persistence across container restarts. These directories are excluded from version control via the `.gitignore` file. To completely reset the semantic cache and start from a blank slate, stop the containers, delete the local `chroma_db` directory, and restart the services.
