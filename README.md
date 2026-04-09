@@ -167,56 +167,45 @@ Clone the repository and navigate to the project root directory. Execute the fol
 git clone <YOUR_REPOSITORY_URL>
 cd <REPOSITORY_NAME>
 docker-compose up -d --build
-```
-
-### Step 2: Provision the Local LLM
-
+Step 2: Provision the Local LLM
 The Ollama container boots up without any models pre-installed. You must pull the Llama 3 model into the container's volume. Run the following command and wait for the download to complete (approximately 4.7 GB):
 
-```bash
+Bash
 docker exec -it ollama_llm ollama pull llama3
-```
-
-### Step 3: Interactive Testing
-
+Step 3: Interactive Testing
 Once the model is downloaded, the API will be fully operational. You can test it using the automatic Swagger UI documentation or via terminal using cURL.
 
-#### Method A: Using the Browser (Swagger UI)
-Navigate to `http://127.0.0.1:8000/docs` and locate the `POST /ask` endpoint.
+Method A: Using the Browser (Swagger UI)
+Navigate to http://127.0.0.1:8000/docs and locate the POST /ask endpoint.
 
-#### Method B: Using cURL
+Method B: Using cURL
 You can execute the following scenarios directly from your terminal.
 
-**Scenario 1: Triggering a Cache Miss**
+Scenario 1: Triggering a Cache Miss
 Send a completely new query to the system. The API will generate an embedding, find no matches in ChromaDB, and forward the request to the local LLM.
 
-```bash
+Bash
 curl -X 'POST' \
-  'http://127.0.0.1:8000/ask' \
+  '[http://127.0.0.1:8000/ask](http://127.0.0.1:8000/ask)' \
   -H 'accept: application/json' \
   -H 'Content-Type: application/json' \
   -d '{
   "prompt": "What are the differences between nuclear fission and fusion?"
 }'
-```
+Expected Result: The request will take several seconds to process. The response JSON will indicate "status": "cache_miss (new generation)" and will return the newly generated text from Llama 3. The system silently stores this vector and response in the database.
 
-**Expected Result:** The request will take several seconds to process. The response JSON will indicate `"status": "cache_miss (new generation)"` and will return the newly generated text from Llama 3. The system silently stores this vector and response in the database.
-
-**Scenario 2: Triggering a Cache Hit**
+Scenario 2: Triggering a Cache Hit
 Send a new request with different wording but the exact same semantic intent.
 
-```bash
+Bash
 curl -X 'POST' \
-  'http://127.0.0.1:8000/ask' \
+  '[http://127.0.0.1:8000/ask](http://127.0.0.1:8000/ask)' \
   -H 'accept: application/json' \
   -H 'Content-Type: application/json' \
   -d '{
   "prompt": "Explain how atomic fission differs from nuclear fusion."
 }'
-```
+Expected Result: The request will return almost instantly (milliseconds). The embedding model recognizes the semantic proximity to the previous query. The response JSON will indicate "status": "cache_hit", display the calculated distance (e.g., 0.12), and return the exact text generated in Scenario 1 without invoking the LLM.
 
-**Expected Result:** The request will return almost instantly (milliseconds). The embedding model recognizes the semantic proximity to the previous query. The response JSON will indicate `"status": "cache_hit"`, display the calculated distance (e.g., 0.12), and return the exact text generated in Scenario 1 without invoking the LLM.
-
-### State Management Note
-
-The vector database (`chroma_db`) and the downloaded LLM weights (`ollama_data`) are stored in local directories mapped as Docker volumes to ensure data persistence across container restarts. These directories are excluded from version control via the `.gitignore` file. To completely reset the semantic cache and start from a blank slate, stop the containers, delete the local `chroma_db` directory, and restart the services.
+State Management Note
+The vector database (chroma_db) and the downloaded LLM weights (ollama_data) are stored in local directories mapped as Docker volumes to ensure data persistence across container restarts. These directories are excluded from version control via the .gitignore file. To completely reset the semantic cache and start from a blank slate, stop the containers, delete the local chroma_db directory, and restart the services.
