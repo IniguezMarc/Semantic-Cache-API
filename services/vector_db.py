@@ -1,4 +1,4 @@
-# This file will handle logic to connect and store in ChromaDB
+# This file handles logic to connect and store in ChromaDB
 import chromadb
 from chromadb.config import Settings
 
